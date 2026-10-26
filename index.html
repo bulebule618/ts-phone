@@ -1899,6 +1899,13 @@ body.readonly #fab,body.readonly #panel{display:none!important}
 
 .ts-chat-filters{display:flex;gap:8px;margin:4px 18px 18px}.ts-chat-filters button{padding:9px 16px!important;border-radius:22px;background:#f3f3f3!important;font-size:13px!important}.ts-chat-filters .on{background:#242628!important;color:white!important}.kk-cr[hidden]{display:none}
 
+/* Use the visible mobile viewport; desktop retains the original presentation frame. */
+@media(max-width:699px){
+ html,body,#page{width:100%;height:var(--ts-view-height,100dvh);min-height:0}
+ #stageWrap{padding:0!important;min-height:0;overflow:hidden}
+ #stage{flex-shrink:0}
+}
+
 </style>
 </head>
 <body>
@@ -7050,7 +7057,25 @@ closeApp=function(...a){if(EV.run){tsExit(()=>tsCloseOriginal(...a));return;}if(
 const tsBackOriginal=back;
 back=function(){if(EV.run){tsExit(()=>tsBackOriginal());return;}if(U.app==='photos'&&curView()?.v==='album'&&curView().p.k==='private')TS.privateOpen=false;tsBackOriginal();};
 const tsFitOriginal=fitStage;
-fitStage=function(){document.body.classList.toggle('nofr',!S.sys.frame||innerWidth<700);tsFitOriginal();};
+// Mobile has no desktop breathing room. Fit the actual visible browser viewport.
+function tsMobileFit(width,height){const scale=Math.min(width/393,height/852);return {scale,width:393*scale,height:852*scale};}
+fitStage=function(){
+ const mobile=innerWidth<700;document.body.classList.toggle('nofr',!S.sys.frame||mobile);
+ if(!mobile){document.documentElement.style.removeProperty('--ts-view-height');tsFitOriginal();return;}
+ const viewport=window.visualViewport;
+ const width=Math.min(innerWidth,viewport?.width||innerWidth),height=viewport?.height||innerHeight;
+ const editing=document.activeElement?.matches('input,textarea,[contenteditable="true"]');
+ // A native keyboard should reveal the input, not shrink the whole simulated phone.
+ if(editing&&TS.mobileHeight&&height<TS.mobileHeight*.75)return;
+ TS.mobileHeight=height;document.documentElement.style.setProperty('--ts-view-height',height+'px');
+ const fitted=tsMobileFit(width,height);
+ $('#scaler').style.transform=`scale(${fitted.scale})`;
+ $('#stage').style.width=fitted.width+'px';$('#stage').style.height=fitted.height+'px';placeYT();
+};
+window.addEventListener('resize',()=>fitStage());
+window.addEventListener('orientationchange',()=>requestAnimationFrame(()=>fitStage()));
+window.visualViewport?.addEventListener('resize',()=>requestAnimationFrame(()=>fitStage()));
+
 sysNow=function(){return S.sys.live?new Date():(()=>{const d=new Date(S.sys.date+'T'+S.sys.time);return d;})();};
 phoneTitle=function(){return S.meta.title||'对不起啊TS 戳破了你的暗恋';};
 const tsUnlockOriginal=doUnlock;
