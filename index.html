@@ -1906,6 +1906,55 @@ body.readonly #fab,body.readonly #panel{display:none!important}
  #stage{flex-shrink:0}
 }
 
+/* Fluid mobile layout: no scaled 393x852 canvas or simulated device bezel. */
+@media(max-width:699px){
+ html,body,#page{width:var(--ts-view-width,100%);height:var(--ts-view-height,100dvh);min-height:0}
+ body{background:#000;overscroll-behavior:none}
+ #stageWrap{width:100%;height:100%;padding:0!important;align-items:stretch;justify-content:stretch}
+ #stage,#scaler{width:100%!important;height:100%!important;min-width:0;min-height:0}
+ #scaler{transform:none!important}
+ body.nofr .device,body.fs .device{left:0;top:0;width:100%;height:100%;padding:0;border-radius:0;background:none;box-shadow:none!important}
+ body.nofr .bezel,body.fs .bezel{width:100%;height:100%;padding:0;border-radius:0;background:none}
+ body.nofr .screen,body.fs .screen,.screen,.app-layer{width:100%;height:100%;border-radius:0!important;box-shadow:none!important}
+ .glare,.hw{display:none!important}
+ .hm-grid{--row:clamp(49px,calc((var(--ts-view-height,100dvh) - 245px)/6),79px);grid-auto-rows:var(--row);row-gap:8px;left:16px;right:16px}
+ .wg-cal,.wg-wx{height:calc(var(--row)*2 + 8px);overflow:hidden}
+ .hm-app .aicon{width:clamp(35px,calc(var(--row) - 20px),60px)!important;height:clamp(35px,calc(var(--row) - 20px),60px)!important}
+ .hm-app{gap:3px}.hm-lb{font-size:11px}
+ .hm-search{bottom:111px;padding:4px 12px}
+ .dock{bottom:12px;height:86px}
+ .pin{padding-top:clamp(58px,12vh,118px)}
+ .pin-dots{margin:16px 0 clamp(18px,5vh,54px)}
+ .pin-pad{grid-template-columns:repeat(3,clamp(58px,10vh,80px));gap:12px 26px}
+ .screen .pin-k{width:clamp(58px,10vh,80px);height:clamp(58px,10vh,80px)}
+ .pin-f{bottom:30px}
+ .callv{padding-top:clamp(60px,10vh,96px);padding-bottom:38px}
+ .call-name{font-size:clamp(25px,7vw,34px)}
+ .ov-call .call-grid{bottom:40px;padding:0 14px;gap:16px 0}
+ .screen .cb{width:clamp(54px,9vh,76px);height:clamp(54px,9vh,76px)}
+ .ts-call-lines{top:155px;bottom:calc(clamp(54px,9vh,76px)*2 + 110px);min-height:0;overflow-y:auto;padding:10px 4px}
+ .ts-call-lines p{font-size:18px;line-height:1.55}.ts-call-lines small{margin-bottom:8px}.ts-call-lines>span{margin-top:12px}
+ .ts-private-form{margin:clamp(24px,9vh,100px) 28px;overflow-y:auto}
+}
+@media(max-width:699px) and (max-height:620px){
+ .lk-head{padding-top:45px}.lk-time{font-size:74px}.lk-date{font-size:17px}.lk-wg{margin-top:5px}
+ .lk-bottom{padding-bottom:28px}.lk-hint{font-size:11px;padding:5px}
+ .ww-t,.cw-day{font-size:35px}.wg-wx,.wg-cal{padding:10px!important}.ww-info{font-size:11px}
+ .ts-call-lines{top:133px}.ts-call-lines p{font-size:16px}
+ .evk-row{height:43px}.evk-bot{height:30px}
+}
+
+@media(max-width:699px){
+ .ts-chat-filters{gap:6px;margin-left:14px;margin-right:14px}
+ .ts-chat-filters button{padding:8px 11px!important;font-size:12px!important;white-space:nowrap}
+}
+@media(max-width:699px) and (max-height:620px){
+ .wg-wx .ww-city{font-size:12px;line-height:14px}
+ .wg-wx .ww-t{font-size:32px;line-height:35px;margin:0}
+ .wg-wx .ww-b{font-size:10px;line-height:12px;margin:0}
+ .wg-wx .ww-b svg{width:12px;height:12px}
+}
+
 </style>
 </head>
 <body>
@@ -7057,20 +7106,26 @@ closeApp=function(...a){if(EV.run){tsExit(()=>tsCloseOriginal(...a));return;}if(
 const tsBackOriginal=back;
 back=function(){if(EV.run){tsExit(()=>tsBackOriginal());return;}if(U.app==='photos'&&curView()?.v==='album'&&curView().p.k==='private')TS.privateOpen=false;tsBackOriginal();};
 const tsFitOriginal=fitStage;
-// Mobile has no desktop breathing room. Fit the actual visible browser viewport.
-function tsMobileFit(width,height){const scale=Math.min(width/393,height/852);return {scale,width:393*scale,height:852*scale};}
+// Mobile uses a fluid screen like the SH reference; desktop keeps the presentation frame.
 fitStage=function(){
- const mobile=innerWidth<700;document.body.classList.toggle('nofr',!S.sys.frame||mobile);
- if(!mobile){document.documentElement.style.removeProperty('--ts-view-height');tsFitOriginal();return;}
+ const mobile=innerWidth<700;
+ document.body.classList.toggle('ts-mobile',mobile);
+ document.body.classList.toggle('nofr',!S.sys.frame||mobile);
+ if(!mobile){
+  document.documentElement.style.removeProperty('--ts-view-height');
+  document.documentElement.style.removeProperty('--ts-view-width');
+  $('#scaler').style.removeProperty('width');$('#scaler').style.removeProperty('height');
+  tsFitOriginal();return;
+ }
  const viewport=window.visualViewport;
- const width=Math.min(innerWidth,viewport?.width||innerWidth),height=viewport?.height||innerHeight;
- const editing=document.activeElement?.matches('input,textarea,[contenteditable="true"]');
- // A native keyboard should reveal the input, not shrink the whole simulated phone.
- if(editing&&TS.mobileHeight&&height<TS.mobileHeight*.75)return;
- TS.mobileHeight=height;document.documentElement.style.setProperty('--ts-view-height',height+'px');
- const fitted=tsMobileFit(width,height);
- $('#scaler').style.transform=`scale(${fitted.scale})`;
- $('#stage').style.width=fitted.width+'px';$('#stage').style.height=fitted.height+'px';placeYT();
+ // Pinch zoom is controlled by the browser, not treated as a layout resize.
+ if(viewport&&Math.abs(viewport.scale-1)>.01)return;
+ const width=viewport?.width||innerWidth,height=viewport?.height||innerHeight;
+ document.documentElement.style.setProperty('--ts-view-width',width+'px');
+ document.documentElement.style.setProperty('--ts-view-height',height+'px');
+ $('#scaler').style.transform='none';
+ $('#scaler').style.width='100%';$('#scaler').style.height='100%';
+ $('#stage').style.width='100%';$('#stage').style.height='100%';placeYT();
 };
 window.addEventListener('resize',()=>fitStage());
 window.addEventListener('orientationchange',()=>requestAnimationFrame(()=>fitStage()));
